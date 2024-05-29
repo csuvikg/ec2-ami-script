@@ -1,16 +1,19 @@
+from typing import Optional
+
+
 class AMIDetails:
-    image_description: str
-    image_name: str
-    image_location: str
-    owner_id: str
+    image_description: Optional[str]
+    image_name: Optional[str]
+    image_location: Optional[str]
+    owner_id: Optional[str]
     instance_ids: list[str]
 
     def __init__(
         self,
-        image_description: str = None,
-        image_name: str = None,
-        image_location: str = None,
-        owner_id: str = None,
+        image_description: Optional[str] = None,
+        image_name: Optional[str] = None,
+        image_location: Optional[str] = None,
+        owner_id: Optional[str] = None,
         instance_ids: list[str] = [],
     ) -> None:
         self.image_description = image_description

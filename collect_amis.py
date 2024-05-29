@@ -15,7 +15,7 @@ session = boto3.Session(region_name=region_name)
 def list_ami_usage(region_name: str) -> AMIUsageDict:
     ec2 = session.resource("ec2")
 
-    result = dict()
+    result: AMIUsageDict = dict()
     for instance in ec2.instances.all():
         image_id = instance.image_id
         result.setdefault(image_id, [])
@@ -28,7 +28,7 @@ def add_ami_details(ami_usage: AMIUsageDict) -> dict[str, AMIDetails]:
     ec2_client = session.client("ec2")
 
     all_amis = ami_usage.keys()
-    invalid_amis = set()
+    invalid_amis: set[str] = set()
 
     is_finished = False
     while not is_finished:
