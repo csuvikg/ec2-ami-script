@@ -5,19 +5,22 @@ region_name = "eu-west-1"
 session = boto3.Session(region_name=region_name)
 
 
-def list_amis(region_name: str) -> list[str]:
+def list_ami_usage(region_name: str) -> dict[str, list[str]]:
     ec2 = session.resource("ec2")
 
-    instances = ec2.instances.all()
-    ami_ids = {instance.image_id for instance in instances}
+    result = dict()
+    for instance in ec2.instances.all():
+        image_id = instance.image_id
+        result.setdefault(image_id, [])
+        result[image_id].append(instance.instance_id)
 
-    return list(ami_ids)
+    return result
 
 
-def describe_amis(ami_ids: list[str]) -> dict[dict, object]:
+def add_ami_details(ami_usage: dict[str, list[str]]) -> dict[dict, object]:
     ec2_client = session.client("ec2")
 
-    ami_details = ec2_client.describe_images(ImageIds=ami_ids)
+    ami_details = ec2_client.describe_images(ImageIds=list(ami_usage.keys()))
 
     image_detail_results = dict()
     for image_detail in ami_details.get("Images", []):
@@ -26,12 +29,12 @@ def describe_amis(ami_ids: list[str]) -> dict[dict, object]:
             "ImageName": image_detail.get("Name", None),
             "ImageLocation": image_detail.get("ImageLocation", None),
             "OwnerId": image_detail.get("OwnerId", None),
-            "InstanceIds": [],
+            "InstanceIds": ami_usage[image_detail["ImageId"]],
         }
 
     return image_detail_results
 
 
-result = describe_amis(list_amis(region_name))
+result = add_ami_details(list_ami_usage(region_name))
 
 print(result)
