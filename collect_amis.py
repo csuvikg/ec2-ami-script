@@ -1,4 +1,7 @@
+import json
+import re
 import boto3
+from botocore.exceptions import ClientError
 
 region_name = "eu-west-1"
 
@@ -20,7 +23,21 @@ def list_ami_usage(region_name: str) -> dict[str, list[str]]:
 def add_ami_details(ami_usage: dict[str, list[str]]) -> dict[dict, object]:
     ec2_client = session.client("ec2")
 
-    ami_details = ec2_client.describe_images(ImageIds=list(ami_usage.keys()))
+    all_amis = ami_usage.keys()
+    invalid_amis = set()
+
+    is_finished = False
+    while not is_finished:
+        try:
+            ami_details = ec2_client.describe_images(
+                ImageIds=list(all_amis - invalid_amis)
+            )
+            is_finished = True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "InvalidAMIID.NotFound":
+                error_message = e.response["Error"]["Message"]
+                found_amis = re.findall(r"ami-\w+", error_message)
+                invalid_amis.update(found_amis)
 
     image_detail_results = dict()
     for image_detail in ami_details.get("Images", []):
@@ -32,9 +49,18 @@ def add_ami_details(ami_usage: dict[str, list[str]]) -> dict[dict, object]:
             "InstanceIds": ami_usage[image_detail["ImageId"]],
         }
 
+    for ami in invalid_amis:
+        image_detail_results[ami] = {
+            "ImageDescription": None,
+            "ImageName": None,
+            "ImageLocation": None,
+            "OwnerId": None,
+            "InstanceIds": ami_usage[ami],
+        }
+
     return image_detail_results
 
 
 result = add_ami_details(list_ami_usage(region_name))
 
-print(result)
+print(json.dumps(result, indent=4))
