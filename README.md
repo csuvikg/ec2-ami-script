@@ -1,5 +1,5 @@
 # Requirements
-* Python3
+* Python3.9+
 
 # Instructions for Unix
 

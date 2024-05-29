@@ -3,12 +3,16 @@ import re
 import boto3
 from botocore.exceptions import ClientError
 
+from ami_details import AMIDetails
+
+AMIUsageDict = dict[str, list[str]]
+
 region_name = "eu-west-1"
 
 session = boto3.Session(region_name=region_name)
 
 
-def list_ami_usage(region_name: str) -> dict[str, list[str]]:
+def list_ami_usage(region_name: str) -> AMIUsageDict:
     ec2 = session.resource("ec2")
 
     result = dict()
@@ -20,7 +24,7 @@ def list_ami_usage(region_name: str) -> dict[str, list[str]]:
     return result
 
 
-def add_ami_details(ami_usage: dict[str, list[str]]) -> dict[dict, object]:
+def add_ami_details(ami_usage: AMIUsageDict) -> dict[str, AMIDetails]:
     ec2_client = session.client("ec2")
 
     all_amis = ami_usage.keys()
@@ -39,28 +43,23 @@ def add_ami_details(ami_usage: dict[str, list[str]]) -> dict[dict, object]:
                 found_amis = re.findall(r"ami-\w+", error_message)
                 invalid_amis.update(found_amis)
 
-    image_detail_results = dict()
+    ami_details_result = dict()
     for image_detail in ami_details.get("Images", []):
-        image_detail_results[image_detail["ImageId"]] = {
-            "ImageDescription": image_detail.get("Description", None),
-            "ImageName": image_detail.get("Name", None),
-            "ImageLocation": image_detail.get("ImageLocation", None),
-            "OwnerId": image_detail.get("OwnerId", None),
-            "InstanceIds": ami_usage[image_detail["ImageId"]],
-        }
+        ami_details_result[image_detail["ImageId"]] = AMIDetails(
+            image_detail.get("Description", None),
+            image_detail.get("Name", None),
+            image_detail.get("ImageLocation", None),
+            image_detail.get("OwnerId", None),
+            ami_usage[image_detail["ImageId"]],
+        )
 
     for ami in invalid_amis:
-        image_detail_results[ami] = {
-            "ImageDescription": None,
-            "ImageName": None,
-            "ImageLocation": None,
-            "OwnerId": None,
-            "InstanceIds": ami_usage[ami],
-        }
+        ami_details_result[ami] = AMIDetails(instance_ids=ami_usage[ami])
 
-    return image_detail_results
+    return ami_details_result
 
 
 result = add_ami_details(list_ami_usage(region_name))
+serializable_result = {k: v.to_dict() for k, v in result.items()}
 
-print(json.dumps(result, indent=4))
+print(json.dumps(serializable_result, indent=4))
