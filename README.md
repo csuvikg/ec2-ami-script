@@ -1,5 +1,6 @@
 # Requirements
 * Python3.9+
+* AWS credentials configured
 
 # Instructions for Unix
 
